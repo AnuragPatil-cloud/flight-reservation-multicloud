@@ -1,0 +1,50 @@
+# Copy to terraform.tfvars and edit. Do NOT commit terraform.tfvars (it is gitignored).
+
+project_id = "YOUR_GCP_PROJECT_ID"
+region     = "asia-south1"
+zone       = "asia-south1-a"
+
+project_name = "flight-reservation"
+environment  = "dev"
+
+# Network
+vm_subnet_cidr    = "10.0.1.0/24"
+gke_subnet_cidr   = "10.0.11.0/24"
+gke_pods_cidr     = "10.1.0.0/16"
+gke_services_cidr = "10.2.0.0/20"
+gke_master_cidr   = "172.16.0.0/28"
+
+# Your current public IP, e.g. 49.37.123.45/32  (curl -s ifconfig.me)
+admin_cidr     = "YOUR_PUBLIC_IP/32"
+enable_iap_ssh = true
+
+# VM1 (Jenkins + SonarQube) and VM2 (kubectl / Helm / Argo CD CLI)
+vm_machine_type        = "e2-standard-2"
+jenkins_volume_size    = 40
+monitoring_volume_size = 40
+
+# GKE - 2 worker nodes
+gke_node_machine_type = "e2-standard-2"
+gke_node_count        = 2
+gke_node_disk_size    = 40
+gke_release_channel   = "REGULAR"
+
+# Cloud SQL for MySQL
+sql_database_version      = "MYSQL_8_4"
+sql_tier                  = "db-g1-small"
+sql_disk_size             = 20
+sql_disk_autoresize_limit = 100
+sql_reservation_database  = "flightdb"
+sql_checkin_database      = "checkin_db"
+sql_username              = "flightadmin"
+sql_password              = "CHANGE_ME_STRONG_PASSWORD"
+sql_backup_retention_days = 3
+
+# Cloud Monitoring alerts (thresholds are fractions: 0.8 = 80 %)
+alert_email                    = "your-email@example.com"
+vm_cpu_threshold               = 0.8
+sql_cpu_threshold              = 0.8
+sql_disk_utilization_threshold = 0.85
+
+# Set true for anything you want to protect from an accidental terraform destroy
+deletion_protection = false

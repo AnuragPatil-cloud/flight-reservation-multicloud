@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flight-reservation-config
+  namespace: flight-reservation
+data:
+  # Replace <CLOUD_SQL_PRIVATE_IP> with `terraform output cloudsql_private_ip`.
+  # One Cloud SQL instance, two logical databases: flightdb (reservation) and checkin_db (check-in).
+  SPRING_DATASOURCE_URL_RESERVATION: "jdbc:mysql://<CLOUD_SQL_PRIVATE_IP>:3306/flightdb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
+  SPRING_DATASOURCE_URL_CHECKIN: "jdbc:mysql://<CLOUD_SQL_PRIVATE_IP>:3306/checkin_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
+  # In-cluster service DNS - no change needed between environments.
+  BOOKING_SERVICE_URL: "http://flight-reservation-service:8080/api/bookings"
+  # Replace once the frontend LoadBalancer address is known:
+  #   kubectl get svc flight-frontend -n flight-reservation
+  FRONTEND_URL: "http://<FRONTEND_LOADBALANCER_IP>"

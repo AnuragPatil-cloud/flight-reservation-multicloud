@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flight-checkin-app
+  namespace: flight-reservation
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: flight-checkin-app
+  template:
+    metadata:
+      labels:
+        app: flight-checkin-app
+    spec:
+      containers:
+        - name: flight-checkin-app
+          # Jenkins' "Update GitOps" stage rewrites this line to
+          # <region>-docker.pkg.dev/<project-id>/<repo>/checkin:<BUILD_NUMBER>
+          image: asia-south1-docker.pkg.dev/YOUR_GCP_PROJECT_ID/flight-reservation-dev/checkin:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: flight-reservation-config
+                  key: SPRING_DATASOURCE_URL_CHECKIN
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: flight-reservation-secrets
+                  key: DB_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: flight-reservation-secrets
+                  key: DB_PASSWORD
+            - name: SPRING_JPA_DATABASE_PLATFORM
+              value: "org.hibernate.dialect.MySQLDialect"
+            - name: SPRING_JPA_PROPERTIES_HIBERNATE_AUTO_QUOTE_KEYWORD
+              value: "true"
+            - name: BOOKING_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: flight-reservation-config
+                  key: BOOKING_SERVICE_URL
+            - name: FRONTEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: flight-reservation-config
+                  key: FRONTEND_URL
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          livenessProbe:
+            tcpSocket:
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 1
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3

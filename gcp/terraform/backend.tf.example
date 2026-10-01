@@ -1,0 +1,13 @@
+# Optional: remote state in a Cloud Storage bucket (recommended once more than one person
+# touches this). Create the bucket first, then copy this file to backend.tf:
+#
+#   gcloud storage buckets create gs://YOUR_PROJECT_ID-tfstate --location=asia-south1 --uniform-bucket-level-access
+#   gcloud storage buckets update gs://YOUR_PROJECT_ID-tfstate --versioning
+#
+# The GCS backend locks state automatically.
+terraform {
+  backend "gcs" {
+    bucket = "YOUR_PROJECT_ID-tfstate"
+    prefix = "flight-reservation/dev"
+  }
+}

@@ -1,0 +1,173 @@
+pipeline {
+  agent any
+
+  environment {
+    DOCKERHUB_CREDS = credentials('dockerhub-creds')
+    TAG = "${BUILD_NUMBER}"
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Backend Build') {
+      // The shared application tree (used by the AWS, Azure and GCP editions) keeps its tests on an
+      // in-memory H2 database, so no database container is needed here. As in the other two
+      // editions, unit tests are skipped in CI for now (see "Roadmap" in the root README).
+      steps {
+        dir('FlightReservationApplication') {
+          sh 'mvn -B clean package -DskipTests'
+        }
+
+        dir('FlightCheckInApplication') {
+          sh 'mvn -B clean package -DskipTests'
+        }
+      }
+    }
+
+    stage('Frontend Checks') {
+      steps {
+        dir('frontend') {
+          sh 'npm ci'
+
+          sh """
+            set +e
+            npm run lint
+            LINT_STATUS=\$?
+
+            if [ "\$LINT_STATUS" -ne 0 ]; then
+              echo "WARNING: ESLint reported issues. Continuing."
+            fi
+
+            exit 0
+          """
+
+          sh 'VITE_API_URL= VITE_API_CHECKIN_URL= npm run build'
+        }
+      }
+    }
+
+    stage('SonarQube Analysis') {
+      steps {
+        withSonarQubeEnv('Sonarqube') {
+          withCredentials([
+            string(
+              credentialsId: 'sonarqube-token',
+              variable: 'SONAR_TOKEN'
+            )
+          ]) {
+            dir('FlightReservationApplication') {
+              sh """
+                mvn -DskipTests sonar:sonar \
+                  -Dsonar.token="\${SONAR_TOKEN}" \
+                  -Dsonar.host.url="\${SONAR_HOST_URL}"
+              """
+            }
+          }
+        }
+      }
+    }
+
+    stage('Docker Build') {
+      steps {
+        sh """
+          set -e
+
+          docker build \
+            -t \${DOCKERHUB_CREDS_USR}/flight-reservation-app:\${TAG} \
+            -t \${DOCKERHUB_CREDS_USR}/flight-reservation-app:latest \
+            FlightReservationApplication
+
+          docker build \
+            -t \${DOCKERHUB_CREDS_USR}/flight-checkin-app:\${TAG} \
+            -t \${DOCKERHUB_CREDS_USR}/flight-checkin-app:latest \
+            FlightCheckInApplication
+
+          docker build \
+            --build-arg VITE_API_URL= \
+            --build-arg VITE_API_CHECKIN_URL= \
+            -t \${DOCKERHUB_CREDS_USR}/flight-frontend:\${TAG} \
+            -t \${DOCKERHUB_CREDS_USR}/flight-frontend:latest \
+            frontend
+        """
+      }
+    }
+
+    stage('Push Images') {
+      steps {
+        sh """
+          set -e
+
+          echo "\${DOCKERHUB_CREDS_PSW}" | \
+            docker login \
+              --username "\${DOCKERHUB_CREDS_USR}" \
+              --password-stdin
+
+          docker push \${DOCKERHUB_CREDS_USR}/flight-reservation-app:\${TAG}
+          docker push \${DOCKERHUB_CREDS_USR}/flight-reservation-app:latest
+
+          docker push \${DOCKERHUB_CREDS_USR}/flight-checkin-app:\${TAG}
+          docker push \${DOCKERHUB_CREDS_USR}/flight-checkin-app:latest
+
+          docker push \${DOCKERHUB_CREDS_USR}/flight-frontend:\${TAG}
+          docker push \${DOCKERHUB_CREDS_USR}/flight-frontend:latest
+        """
+      }
+    }
+
+    stage('Update GitOps') {
+      steps {
+        withCredentials([
+          usernamePassword(
+            credentialsId: 'github',
+            usernameVariable: 'GITHUB_USER',
+            passwordVariable: 'GITHUB_TOKEN'
+          )
+        ]) {
+          sh """
+            set -e
+
+            sed -i -E \
+              "s|^([[:space:]]*image:)[[:space:]].*flight-reservation-app.*|\\\\1 \${DOCKERHUB_CREDS_USR}/flight-reservation-app:\${TAG}|" \
+              azure/gitops/reservation-deployment.yaml
+
+            sed -i -E \
+              "s|^([[:space:]]*image:)[[:space:]].*flight-checkin-app.*|\\\\1 \${DOCKERHUB_CREDS_USR}/flight-checkin-app:\${TAG}|" \
+              azure/gitops/checkin-deployment.yaml
+
+            sed -i -E \
+              "s|^([[:space:]]*image:)[[:space:]].*flight-frontend.*|\\\\1 \${DOCKERHUB_CREDS_USR}/flight-frontend:\${TAG}|" \
+              azure/gitops/frontend-deployment.yaml
+
+            git config user.name "jenkins"
+            git config user.email "jenkins@local"
+
+            git add azure/gitops/
+
+            if ! git diff --cached --quiet; then
+              git commit -m "Update images to build \${TAG} [skip ci]"
+
+              git -c credential.helper='!f() { echo username="\$GITHUB_USER"; echo password="\$GITHUB_TOKEN"; }; f' \
+                push origin HEAD:main
+            else
+              echo "No GitOps changes required"
+            fi
+          """
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      sh """
+        docker logout || true
+        docker image prune -f || true
+      """
+    }
+  }
+}

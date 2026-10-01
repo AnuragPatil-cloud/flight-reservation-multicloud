@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is git-ignored.
+# Variable names match variables.tf.
+
+subscription_id = "YOUR-AZURE-SUBSCRIPTION-ID"   # az account show --query id -o tsv
+
+# Regions: pick ones where your subscription has quota for the VM sizes below.
+vm_location  = "canadaeast"         # CI + monitoring VMs
+aks_location = "australiasoutheast" # AKS cluster
+
+project_name = "flight-reservation-application"
+environment  = "dev"
+
+admin_username      = "azureadmin"
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+
+# 2 vCPU / 8 GiB class (default in variables.tf is Standard_B2als_v2 for VMs, Standard_D2ds_v6 for AKS nodes)
+vm_size          = "Standard_D2ds_v6"
+aks_node_vm_size = "Standard_D2ds_v6"

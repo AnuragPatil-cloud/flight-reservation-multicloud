@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flight-reservation-config
+  namespace: flight-reservation
+data:
+  # Replace <RDS_ENDPOINT> with `terraform output rds_endpoint` (host only, no port).
+  # NOTE: as deployed and shown in docs/screenshots/aws/08-rds-data-stored.png, BOTH services use
+  # the single `checkin_db` database (their tables do not collide). Terraform also creates `flightdb`;
+  # to split the services like the Azure/GCP editions do, change the reservation URL to /flightdb.
+  SPRING_DATASOURCE_URL_RESERVATION: "jdbc:mysql://<RDS_ENDPOINT>:3306/checkin_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
+  SPRING_DATASOURCE_URL_CHECKIN: "jdbc:mysql://<RDS_ENDPOINT>:3306/checkin_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
+  # In-cluster service DNS - no change needed between environments.
+  BOOKING_SERVICE_URL: "http://flight-reservation-service:8080/api/bookings"
+  # Replace once the frontend LoadBalancer address is known:
+  #   kubectl get svc flight-frontend -n flight-reservation
+  FRONTEND_URL: "http://<FRONTEND_LOADBALANCER_HOSTNAME>"

@@ -1,0 +1,60 @@
+aws_region   = "ap-south-1"
+project_name = "flight-reservation"
+environment  = "dev"
+
+vpc_cidr = "10.0.0.0/16"
+
+availability_zones = [
+  "ap-south-1a",
+  "ap-south-1b"
+]
+
+public_subnet_cidrs = [
+  "10.0.1.0/24",
+  "10.0.2.0/24"
+]
+
+private_subnet_cidrs = [
+  "10.0.11.0/24",
+  "10.0.12.0/24"
+]
+
+database_subnet_cidrs = [
+  "10.0.21.0/24",
+  "10.0.22.0/24"
+]
+
+admin_cidr = "YOUR_PUBLIC_IP/32"
+key_name   = "YOUR_EC2_KEYPAIR_NAME"
+
+ec2_instance_type = "c7i-flex.large"
+
+jenkins_volume_size    = 40
+monitoring_volume_size = 40
+
+eks_node_instance_type = "c7i-flex.large"
+eks_desired_nodes      = 2
+eks_min_nodes          = 2
+eks_max_nodes           = 2
+
+rds_instance_class        = "db.t3.micro"
+rds_engine_version        = "10.11"
+rds_database_name         = "flightdb"
+rds_username              = "flightadmin"
+rds_password              = "CHANGE_ME"
+rds_backup_retention_days = 1
+
+s3_bucket_prefix = "flight-reservation-dev-files-"
+
+ecr_repositories = [
+  "flight-reservation-dev-reservation",
+  "flight-reservation-dev-checkin",
+  "flight-reservation-dev-frontend"
+]
+
+sns_topic_name = "flight-reservation-dev-alerts"
+alert_email    = "your-email@example.com"
+
+ec2_cpu_threshold = 80
+rds_cpu_threshold = 80
+rds_free_storage_threshold_bytes = 5368709120
